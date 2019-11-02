@@ -27,10 +27,14 @@ func main() {
 		if err != nil {
 			log.Fatal("Starting port was specified incorrectly. Aborting...")
 		}
-		end, err = strconv.Atoi(portsNums[1])
+		endPort, err := strconv.Atoi(portsNums[1])
 		if err != nil {
 			log.Fatal("Second port was specified incorrectly. Aborting...")
 		}
+		if endPort > end {
+			log.Fatal("Second port overflows maximum value of 65536. Aborting...")
+		}
+		end = endPort
 	}
 
 	var ports []int
@@ -38,10 +42,16 @@ func main() {
 
 		_, err := net.DialTimeout("tcp",
 			fmt.Sprintf("%s:%v", *host, i), time.Millisecond*300)
-		if err == nil {
-			fmt.Print(".")
-			ports = append(ports, i)
+		if err != nil {
+			if err, ok := err.(*net.OpError); ok {
+				if !err.Err.(*net.DNSError).IsTimeout {
+					log.Fatal("Problems connecting to the host. Aborting...")
+				}
+			}
+			continue
 		}
+		fmt.Print(".")
+		ports = append(ports, i)
 	}
 	if len(ports) != 0 {
 		fmt.Printf("\n%v\n", ports)
